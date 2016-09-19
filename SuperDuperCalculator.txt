@@ -1,0 +1,275 @@
+import java.util.StringTokenizer;
+import java.util.Stack;
+import java.util.*;
+
+/**
+ * Super Duper Java Calculator
+ * 
+ * This calculator evaluates infix expressions that use modular arithmetic and exponentiation in
+ * addition to the four standard operations. Program allows for parentheses, braces and brackets
+ * but not negative numbers. Error checking prevents malformed expressions and non-standard notations 
+ * from being processed.
+ * 
+ * Author: Kenneth Wright
+ */
+
+public class SuperDuperCalculator
+{
+    int braces;
+    int brackets;
+    int parentheses;
+    
+    final ArrayList<Character> operators = new ArrayList<Character>(Arrays.asList('+','-','*','/','^','%'));
+    final ArrayList<Character> op1 = new ArrayList<Character>(Arrays.asList('+','-'));
+    final ArrayList<Character> op2 = new ArrayList<Character>(Arrays.asList('*','/','%'));
+    final ArrayList<Character> op3 = new ArrayList<Character>(Arrays.asList('^'));
+    final ArrayList<Character> groupSymbols = new ArrayList<Character>(Arrays.asList('(',')','[',']','{','}'));
+    
+    boolean operatorMode; // Maintains syntactic pattern for operators and operands
+    Stack<Double> operandStack;
+    Stack<Character> operatorStack;
+    String operandString;
+    
+    boolean firstCharEncountered; // Changes to true when first operator or operand is encountered
+    boolean spaceEncountered; // Changes to true when first space is encountered
+    boolean decimalEncountered;
+    boolean errorEncountered;
+
+    /**
+     * Evaluates the entire expression
+     */
+    public void checkExpression(String expression)
+    {
+        resetValues();
+        
+        for (int i = 0; i < expression.length(); i++)
+        {
+            if (errorEncountered) break;
+            operandString = "";
+            char character = expression.charAt(i);
+            
+            if (character == ' ' && !spaceEncountered)
+            {
+                if (firstCharEncountered) operatorMode = !operatorMode;
+                spaceEncountered = true;
+                decimalEncountered = false;
+            }
+            else if (operators.indexOf(character) != -1)
+            { 
+                //System.out.println("Operator: "+character);
+                
+                checkOperationMode(character);
+                processOperator(character);
+                operatorMode = false;
+                decimalEncountered = false;
+            }
+            else if (Character.isDigit(character) || character == '.')
+            {
+                checkOperationMode(character);
+                i = processDigit(expression,i);
+                operatorMode = true;
+            }
+            else if (groupSymbols.indexOf(character) != -1)
+            {
+                processGroupSymbol(character);
+            }
+            else if (character != ' ')
+            {
+                System.out.println("Error: Invalid Characters!");
+                errorEncountered = true;
+            }
+        }
+          
+        if (parentheses + braces + brackets != 0)
+        {
+            System.out.println("Error: Uneven Grouping Symbols");
+            errorEncountered = true;
+        }
+    
+        if (!errorEncountered) 
+        {
+            while (!operatorStack.empty())
+            performOperation();
+            System.out.println(operandStack);
+        }
+    }
+    
+    /**
+     * Checks syntax for double operator or operand
+     */
+    public void checkOperationMode(Character value)
+    {
+        if (!operatorMode && operators.indexOf(value) != -1)
+        {
+            System.out.println("Error: Adjacent Operators Not Allowed!");
+            errorEncountered = true;
+        }
+        else if (operatorMode && Character.isDigit(value) && !decimalEncountered && operandString.equals(""))
+        {
+            System.out.println("Error: Adjacent Operands Not Allowed!");
+            errorEncountered = true;
+        }
+    }
+    
+    /**
+     * 
+     */
+    public void evaluateGroupExpression(char groupSymbol)
+    {
+        int index = groupSymbols.indexOf(groupSymbol) - 1;
+        //System.out.println("Start Paren: "+groupSymbol);
+        
+        while (operatorStack.peek() != groupSymbols.get(index))
+        {
+            //System.out.println("OPP: "+operatorStack.peek());
+            if (groupSymbols.indexOf(operatorStack.peek()) % 2 == 0)
+            {
+                System.out.println("Error: Group Symbol Mismatch!");
+                brackets = braces = parentheses = 0;
+                errorEncountered = true;
+                return;
+            }
+            else
+                performOperation();
+        }
+        
+        //System.out.println("Parenthesis: "+operatorStack.peek());
+        operatorStack.pop();
+    }
+    
+    /**
+     * Evaluates part of the expression
+     */
+    public void performOperation()
+    {
+        char operator = operatorStack.pop();
+        double operand1 = operandStack.pop();
+        double operand2 = operandStack.pop();
+        double result = -1;
+        
+        switch (operator)
+        {
+            case '+':   result = operand2 + operand1; break;
+            case '-':   result = operand2 - operand1; break;
+            case '*':   result = operand2 * operand1; break;
+            case '/':   if (operand1 == 0)
+                        {
+                            System.out.println("Error: Can't divide by 0");
+                            errorEncountered = true;
+                        }
+                        else result = operand2 / operand1; break;
+            case '%':   result = operand2 % operand1; break;
+            case '^':   result = Math.pow(operand2,operand1); break;
+            default:    System.out.println("Error: Invalid Operator");
+                        errorEncountered = true;
+        }
+        
+        System.out.println("Operation: "+operand2+" "+operator+" "+operand1+" = "+result);
+        
+        operandStack.push(result);
+    }
+    
+    /**
+     * 
+     */
+    public int processDigit(String expression, int index)
+    {  
+        while (expression.charAt(index) == '.' || Character.isDigit(expression.charAt(index)) )
+        {
+            operandString += expression.charAt(index);
+            index++;
+            if (index >= expression.length()) break;  
+        }
+        
+        if (operandString.endsWith(".")) System.out.println("Bad Format");
+        //System.out.println("Digit: "+operandString);
+        operandStack.push(Double.parseDouble(operandString));
+        //System.out.println("Operand Stack: "+operandStack);
+        
+        return index-1;
+    }
+    
+    /**
+     * Checks group symbol and processes it
+     */
+    public void processGroupSymbol(Character value)
+    {
+        switch(value)
+        {
+            case '(':   parentheses++; //System.out.println("Open Parenthesis: "+parentheses);
+                        operatorStack.push(value); break;
+            case ')':   parentheses--; //System.out.println("Close Parenthesis: "+parentheses); 
+                        evaluateGroupExpression(value); break;
+            case '{':   braces++; //System.out.println("Open Brace: "+braces);
+                        operatorStack.push(value); break;
+            case '}':   braces--; //System.out.println("Close Brace: "+braces);
+                        evaluateGroupExpression(value); break;
+            case '[':   brackets++; //System.out.println("Open Bracket: "+brackets);
+                        operatorStack.push(value); break;
+            case ']':   brackets--; //System.out.println("Close Bracket"+brackets);
+                        evaluateGroupExpression(value); break;
+            default:    System.out.println("Error: Incorrect Group Symbol");
+                        errorEncountered = true;
+        }
+    }
+    
+    /**
+     *  Checks operator and processes it
+     */
+    public void processOperator(Character value)
+    {
+        switch (value)
+        {
+            case '+': case '-':             if (!operatorStack.empty())
+                                                while (op2.contains(operatorStack.peek()) ||
+                                                    op3.contains(operatorStack.peek()))
+                                                {
+                                                    performOperation();
+                                                    if (operatorStack.empty()) break;
+                                                }
+                                            operatorStack.push(value); break;
+                                            
+            case '*': case '/': case '%':   if (!operatorStack.empty())
+                                                while (op3.contains(operatorStack.peek()))
+                                                {
+                                                    performOperation();
+                                                    if (operatorStack.empty()) break;
+                                                }
+                                            operatorStack.push(value); break;
+                                            
+            case '^':                       operatorStack.push(value);
+                                            break;
+            
+            default:                        System.out.println("Error: Invalid Operator");
+                                            errorEncountered = true;
+        }
+
+        //System.out.println("Operator Stack: "+operatorStack);
+    }
+    
+    /**
+     * Resets all flags for next expression
+     */
+    public void resetValues()
+    {
+        braces = brackets = parentheses = 0;
+        operatorMode = firstCharEncountered = spaceEncountered = false;
+        decimalEncountered = errorEncountered = false;
+        operatorStack = new Stack<Character>();
+        operandStack = new Stack<Double>();
+        operandString = "";
+    }
+    
+    public static void main(String[] args)
+    {
+        String input = "";
+        SuperDuperCalculator sdc = new SuperDuperCalculator();
+        
+        while (!input.equals("0"))
+        {
+            System.out.println("Enter an expression, or press 0 to quit");
+            input = new Scanner(System.in).nextLine();
+            if (!input.equals("0")) sdc.checkExpression(input);
+        }
+    }
+}
